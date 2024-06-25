@@ -1,6 +1,10 @@
 package org.example;
 
-import org.openqa.selenium.*;
+import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.WindowType;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -12,7 +16,26 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 
-import static org.example.TerminChecker.ElementsXPath.*;
+import static org.example.TerminChecker.ElementsXPath.BUTTON_BOOK;
+import static org.example.TerminChecker.ElementsXPath.BUTTON_NEXT;
+import static org.example.TerminChecker.ElementsXPath.CATEGORY;
+import static org.example.TerminChecker.ElementsXPath.CHECKBOX_ACCEPT;
+import static org.example.TerminChecker.ElementsXPath.CHILDREN;
+import static org.example.TerminChecker.ElementsXPath.COUNTRY;
+import static org.example.TerminChecker.ElementsXPath.DATEPICKER;
+import static org.example.TerminChecker.ElementsXPath.EINE;
+import static org.example.TerminChecker.ElementsXPath.ERROR;
+import static org.example.TerminChecker.ElementsXPath.EXPIRED;
+import static org.example.TerminChecker.ElementsXPath.HEADER;
+import static org.example.TerminChecker.ElementsXPath.LOADING;
+import static org.example.TerminChecker.ElementsXPath.NEIN;
+import static org.example.TerminChecker.ElementsXPath.PEOPLE;
+import static org.example.TerminChecker.ElementsXPath.REJECTED;
+import static org.example.TerminChecker.ElementsXPath.REJECT_YT;
+import static org.example.TerminChecker.ElementsXPath.RUSSIA;
+import static org.example.TerminChecker.ElementsXPath.SELECTABLE_DAY;
+import static org.example.TerminChecker.ElementsXPath.SUB_CATEGORY;
+import static org.example.TerminChecker.ElementsXPath.TIME_SELECT;
 
 public class TerminChecker {
     public static final List<String> USER_AGENTS = List.of(
@@ -30,7 +53,7 @@ public class TerminChecker {
             "versuchen Sie es zu einem späteren Zeitpunkt erneut";
 
 
-    static class ElementsXPath {
+    public static class ElementsXPath {
         public static final String BUTTON_BOOK = "//*[@id=\"mainForm\"]/div/div/div/div/div/div/div/div/div/div[1]/div[1]/div[2]/a";
         public static final String CHECKBOX_ACCEPT = "//*[@id=\"xi-cb-1\"]";
         public static final String BUTTON_NEXT = "//*[@id=\"applicationForm:managedForm:proceed\"]";
@@ -42,16 +65,21 @@ public class TerminChecker {
         public static final String NEIN = "nein";
         public static final String CATEGORY = "//*[@id=\"xi-div-30\"]/div[3]";
         public static final String SUB_CATEGORY = "//*[@id=\"SERVICEWAHL_DE160-0-3-99-326798\"]";
-        public static final String ERROR = "//*[@id=\"messagesBox\"]";
+        public static final String ERROR = "//*[@id=\"messagesBox\"]//li[contains(text(),'keine Termine frei')]";
         public static final String REJECT_YT = "//*[@id=\"content\"]/div[2]/div[6]/div[1]/ytd-button-renderer[1]/yt-button-shape/button/yt-touch-feedback-shape/div/div[2]";
         public static final String HEADER = "//*[@id=\"header\"]";
         public static final String DATEPICKER = "//*[@id=\"xi-div-2\"]/div/div[1]/table";
-        public static final String EXPIRED = "//h2[contains(text(),'Sitzungsende')]";
         public static final String SELECTABLE_DAY = "//td[@data-handler=\"selectDay\"]";
         public static final String TIME_SELECT = "//select[@label=\"Bitte wählen Sie einen Tag\"]";
         public static final String TIME_OPTIONS = "//select[@label=\"Bitte wählen Sie einen Tag\"]/option[contains(text(),\":\")]";
+        public static final String EXPIRED = "//h2[contains(text(),'Sitzungsende')]";
+        public static final String REJECTED = "//body[contains(text(),'The requested URL was rejected')]";
+        public static final String LOADING = "/html/body/div[@class='loading']";
+
 //       selector //*[@id="xi-sel-3"]
     }
+
+    private static final List<String> FATAL_XPATHS = List.of(EXPIRED, REJECTED);
 
     private static int MIN_DAY = 12;
 
@@ -60,6 +88,18 @@ public class TerminChecker {
 
     public TerminChecker() {
         this.driver = new ChromeDriver(createOptions());
+    }
+
+    public void start() {
+        try {
+            run();
+        } catch (RecoverableException e) {
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            driver.close();
+            throw new RuntimeException(e);
+        }
     }
 
     public void run() throws InterruptedException {
@@ -83,6 +123,7 @@ public class TerminChecker {
         while (!expired) {
             try {
                 waitPage();
+//                waitLoading();
                 driver.findElement(By.xpath(ERROR));
                 System.out.println(LocalDateTime.now() + " - failed");
                 try {
@@ -96,9 +137,11 @@ public class TerminChecker {
                 }
             } catch (NoSuchElementException e) {
                 if (isTermin()) {
-//                    int today = LocalDate.now().getDayOfMonth();
-                    WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
-                    wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(SELECTABLE_DAY)));
+                    System.out.println(LocalDateTime.now() + " hit termin window!");
+                    System.out.println(LocalDateTime.now() + " aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
+                            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
+                            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+                    waitElement(SELECTABLE_DAY, false);
                     List<WebElement> elements = driver.findElements(By.xpath(SELECTABLE_DAY));
                     try {
                         int minAcceptableDay = elements.stream()
@@ -113,7 +156,7 @@ public class TerminChecker {
                                 .orElseThrow();
                         dateElement.click();
 
-                        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(TIME_SELECT)));
+                        waitElement(TIME_SELECT, false);
                         List<WebElement> options = driver.findElements(By.xpath(TIME_SELECT));
                         if (!options.isEmpty()) {
                             Select select = new Select(driver.findElement(By.xpath(TIME_SELECT)));
@@ -122,7 +165,7 @@ public class TerminChecker {
                             driver.switchTo().newWindow(WindowType.TAB);
                             driver.get("https://www.youtube.com/watch?v=_S7WEVLbQ-Y&ab_channel=FicLord");
                             waitRandom(5000);
-                            new WebDriverWait(driver, Duration.ofSeconds(20)).until(ExpectedConditions.elementToBeClickable(By.xpath(REJECT_YT))).click();
+                            new WebDriverWait(driver, Duration.ofSeconds(30)).until(ExpectedConditions.elementToBeClickable(By.xpath(REJECT_YT))).click();
                             return;
                         }
                     } catch (java.util.NoSuchElementException ignored) {
@@ -162,16 +205,15 @@ public class TerminChecker {
         Thread.sleep(Duration.ofMillis(1000L + random.nextLong(millis)));
     }
 
-    private void clickWait(String xpath) throws InterruptedException {
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
-//        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(xpath)));
-//        waitRandom();
-        wait.until(ExpectedConditions.elementToBeClickable(By.xpath(xpath))).click();
+    private void clickWait(String xpath) {
+        waitElement(xpath, true).click();
     }
 
     private void selectWait(String xpath, String option) throws InterruptedException {
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(xpath)));
+//        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+//        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(xpath)));
+        waitElement(xpath, true);
+        System.out.println("found select");
         waitRandom();
 
         Select select = new Select(driver.findElement(By.xpath(xpath)));
@@ -201,7 +243,41 @@ public class TerminChecker {
     }
 
     public void waitPage() {
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(HEADER)));
+        waitElement(HEADER, true);
+    }
+
+    public WebElement waitElement(String xpath, boolean retry) {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+        try {
+            return wait.until(ExpectedConditions.elementToBeClickable(By.xpath(xpath)));
+        } catch (TimeoutException e) {
+            // check fatal
+            List<WebElement> fatalElements = FATAL_XPATHS.stream()
+                    .flatMap(xp -> driver.findElements(By.xpath(xp)).stream())
+                    .toList();
+            if (!fatalElements.isEmpty()) {
+                throw new RecoverableException(String.format("fatal - %s", fatalElements.getFirst().getText()));
+            }
+
+            // check loading
+            if (!driver.findElements(By.xpath(LOADING)).isEmpty()) {
+                if (retry) {
+                    waitElement(xpath, false);
+                } else {
+                    throw new RecoverableException(String.format("forever loading - %s", xpath));
+                }
+            }
+            System.out.println("Propagating timeout");
+            throw e;
+        }
+    }
+
+    public void waitLoading() {
+        List<WebElement> loading = driver.findElements(By.xpath(LOADING));
+        if (loading.isEmpty()) {
+            return;
+        }
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+        wait.until(ExpectedConditions.not(ExpectedConditions.visibilityOf(loading.getFirst())));
     }
 }

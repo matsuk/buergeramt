@@ -1,21 +1,21 @@
 package org.example;
 
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Random;
 
 public class Main {
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         while (true) {
             TerminChecker example = new TerminChecker();
-            example.run();
+            try {
+                example.start();
+            } catch (RecoverableException e) {
+                System.out.println("Recoverable Exception: " + e.getMessage());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
